@@ -18,7 +18,7 @@ from hlan_model import HLAN
 PROCESSED_DATA_PATH = '../../data/processed'
 MODEL_OUTPUT_PATH = '../../models/HLANModel.pth'
 
-NUM_EPOCHS = 30
+NUM_EPOCHS = 100
 BATCH_SIZE = 32
 USE_CUDA = True
 
@@ -204,6 +204,47 @@ def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10
     return losses.avg
 
 
+def evaluate(model, device, data_loader, criterion, print_freq=10):
+    batch_time = AverageMeter()
+    losses = AverageMeter()
+    
+    results = []
+    
+    model.eval()
+
+    with torch.no_grad():
+        end = time.time()
+        for i, (input, target) in enumerate(data_loader):
+            
+            if isinstance(input, tuple):
+                input = tuple([e.to(device) if type(e) == torch.Tensor else e for e in input])
+            else:
+                input = input.to(device)
+            target = target.to(device)
+            
+            output = model(input)
+            loss = criterion(output, target)
+            
+            # measure elapsed time
+            batch_time.update(time.time() - end)
+            end = time.time()
+            
+            losses.update(loss.item(), target.size(0))
+            
+            y_true = target.detach().to('cpu').numpy().tolist()
+            y_pred = output.detach().to('cpu').max(1)[1].numpy().tolist()
+            results.extend(list(zip(y_true, y_pred)))
+            
+            if i % print_freq == 0:
+                print('Test: [{0}/{1}]\t'
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})'.format(
+                          i, len(data_loader), batch_time=batch_time, loss=losses))
+                
+    return losses.avg, results
+
+
+
 def get_device():
     return torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
 
@@ -249,6 +290,7 @@ def run():
 
     for epoch in range(NUM_EPOCHS):
         train(model, device, train_loader, criterion, optimizer, epoch)
+        evaluate(model, device, dev_loader, criterion)
         torch.save(model, MODEL_OUTPUT_PATH)
 
 
