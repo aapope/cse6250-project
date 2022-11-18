@@ -281,7 +281,7 @@ def run():
     )
 
     model = HLAN(label_embeddings=label_embeddings)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters())
     device = get_device()
     torch.manual_seed(10)
