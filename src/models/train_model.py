@@ -4,6 +4,7 @@ import os
 import sys
 from pprint import pprint
 import time
+from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -160,7 +161,7 @@ def load_dataset(dataset_path):
 
 
 
-def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10):
+def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10, save_freq=None):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -194,12 +195,16 @@ def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10
         losses.update(loss.item(), target.size(0))
         
         if i % print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
+            print('[{3}]\tEpoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})'.format(
-                      epoch, i, len(data_loader), batch_time=batch_time,
+                      epoch, i, len(data_loader), datetime.now(),
+                      batch_time=batch_time,
                       data_time=data_time, loss=losses))
+        if save_freq and i % save_freq == 0:
+            torch.save(model, MODEL_OUTPUT_PATH)
+
             
     return losses.avg
 
@@ -289,7 +294,7 @@ def run():
     criterion.to(device)
 
     for epoch in range(NUM_EPOCHS):
-        train(model, device, train_loader, criterion, optimizer, epoch)
+        train(model, device, train_loader, criterion, optimizer, epoch, save_freq=50)
         evaluate(model, device, dev_loader, criterion)
         torch.save(model, MODEL_OUTPUT_PATH)
 

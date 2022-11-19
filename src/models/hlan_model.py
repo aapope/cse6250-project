@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 class HLAN(nn.Module):
-    def __init__(self, max_document_length=100, sentence_length=25, embedding_length=100, num_labels=50, word_level_hidden_size=100, sentence_level_hidden_size=200, use_sentence_attention_per_label=True, use_word_attention_per_label=False, label_embeddings=None):
+    def __init__(self, max_document_length=100, sentence_length=25, embedding_length=100, num_labels=50, word_level_hidden_size=100, sentence_level_hidden_size=200, use_sentence_attention_per_label=True, use_word_attention_per_label=True, label_embeddings=None):
         super(HLAN, self).__init__()
         
         self.max_document_length = max_document_length
@@ -27,40 +27,45 @@ class HLAN(nn.Module):
             2 * word_level_hidden_size
         )
 
-        # TODO: initialize the below using the label embeddings
+        if label_embeddings is not None:
+            print('Using label embeddings to initialize attention matrix')
+            label_embeddings = torch.Tensor(label_embeddings).float()
+            # TODO: in the paper's code, this is (200, 50), so we need to regenerate these
+            # and remove this line
+            label_embeddings = label_embeddings[:2 * word_level_hidden_size, :] 
+            assert label_embeddings.shape == (2 * word_level_hidden_size, num_labels)
+
         if use_word_attention_per_label:
-            self.context_vector_word = nn.Parameter(torch.ones(num_labels, word_level_hidden_size * 2))
-            # TODO: re-implement GRU for word-level attention
+            if label_embeddings is not None:
+                self.context_vector_word = nn.Parameter(label_embeddings.T)
+            else:
+                self.context_vector_word = nn.Parameter(torch.ones(num_labels, word_level_hidden_size * 2))
         else:
             self.context_vector_word = nn.Parameter(torch.ones(self.word_level_hidden_size * 2))
 
-            self.sentence_level_gru = nn.GRU(
-                2 * word_level_hidden_size, sentence_level_hidden_size, num_layers=1, batch_first=True,
-                bidirectional=True
-            )
-            self.sentence_level_attention = nn.Linear(
-                2 * sentence_level_hidden_size,
-                2 * sentence_level_hidden_size
-            )
+        self.sentence_level_gru = nn.GRU(
+            2 * word_level_hidden_size, sentence_level_hidden_size, num_layers=1, batch_first=True,
+            bidirectional=True
+        )
+            
+        self.sentence_level_attention = nn.Linear(
+            2 * sentence_level_hidden_size,
+            sentence_level_hidden_size
+        )
 
         
-        # TODO: initialize the below using label embeddings
         if use_sentence_attention_per_label:
-            self.context_vector_sentence = nn.Parameter(torch.ones(num_labels, 2 * self.sentence_level_hidden_size))
-
             # initialize weights the same way that nn.Linear would
             # https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
-            bound = math.sqrt(1 / (2 * self.sentence_level_hidden_size))
             if label_embeddings is not None:
-                print('Using label embeddings to initialize attention matrix')
-                initial = torch.Tensor(label_embeddings).float()
-                assert initial.shape == (2 * self.sentence_level_hidden_size, num_labels)
-                self.W_output = nn.Parameter(initial)
+                self.context_vector_sentence = nn.Parameter(label_embeddings.T)
             else:
-                print('NOT USING label embeddings to initialize attention matrix.')
-                self.W_output = nn.Parameter(
-                    torch.FloatTensor(2 * self.sentence_level_hidden_size, num_labels).uniform_(-bound, bound)
-                )
+                self.context_vector_sentence = nn.Parameter(torch.ones(num_labels, 2 * self.word_level_hidden_size))
+                
+            bound = math.sqrt(1 / (2 * self.sentence_level_hidden_size))
+            self.W_output = nn.Parameter(
+                torch.FloatTensor(2 * self.sentence_level_hidden_size, num_labels).uniform_(-bound, bound)
+            )
             self.b_output = nn.Parameter(
                 torch.FloatTensor(num_labels).uniform_(-bound, bound)
             )
@@ -91,11 +96,9 @@ class HLAN(nn.Module):
                 self.num_labels, -1, document_length, 2 * self.word_level_hidden_size
             )
             # print(f'Shape of word attention output: {sentences.shape}')
-            
-            # TODO: word attention per-label will require a GRU re-implementation
-            # to support 4-dimensional inputs. I searched around to see if there's
-            # an implementation available, with no luck
 
+            gru_output = self.stack_gru(sentences)
+            # print(f'Shape of GRU output: {gru_output.shape}')
         else:
             # shape: (batch_size, num_sentences, 2 * hidden)
             sentences = self.word_attention(gru_output)
@@ -121,6 +124,62 @@ class HLAN(nn.Module):
             
         # print(logits.shape)
         return logits
+
+    def stack_gru(self, sentences):
+        # intresestingly, this method is ~1/3 faster than doing exactly
+        # this same thing in a for loop
+        return torch.stack([
+            self.sentence_level_gru(sentences[0, :, :, :])[0],
+            self.sentence_level_gru(sentences[1, :, :, :])[0],
+            self.sentence_level_gru(sentences[2, :, :, :])[0],
+            self.sentence_level_gru(sentences[3, :, :, :])[0],
+            self.sentence_level_gru(sentences[4, :, :, :])[0],
+            self.sentence_level_gru(sentences[5, :, :, :])[0],
+            self.sentence_level_gru(sentences[6, :, :, :])[0],
+            self.sentence_level_gru(sentences[7, :, :, :])[0],
+            self.sentence_level_gru(sentences[8, :, :, :])[0],
+            self.sentence_level_gru(sentences[9, :, :, :])[0],
+            self.sentence_level_gru(sentences[10, :, :, :])[0],
+            self.sentence_level_gru(sentences[11, :, :, :])[0],
+            self.sentence_level_gru(sentences[12, :, :, :])[0],
+            self.sentence_level_gru(sentences[13, :, :, :])[0],
+            self.sentence_level_gru(sentences[14, :, :, :])[0],
+            self.sentence_level_gru(sentences[15, :, :, :])[0],
+            self.sentence_level_gru(sentences[16, :, :, :])[0],
+            self.sentence_level_gru(sentences[17, :, :, :])[0],
+            self.sentence_level_gru(sentences[18, :, :, :])[0],
+            self.sentence_level_gru(sentences[19, :, :, :])[0],
+            self.sentence_level_gru(sentences[20, :, :, :])[0],
+            self.sentence_level_gru(sentences[21, :, :, :])[0],
+            self.sentence_level_gru(sentences[22, :, :, :])[0],
+            self.sentence_level_gru(sentences[23, :, :, :])[0],
+            self.sentence_level_gru(sentences[24, :, :, :])[0],
+            self.sentence_level_gru(sentences[25, :, :, :])[0],
+            self.sentence_level_gru(sentences[26, :, :, :])[0],
+            self.sentence_level_gru(sentences[27, :, :, :])[0],
+            self.sentence_level_gru(sentences[28, :, :, :])[0],
+            self.sentence_level_gru(sentences[29, :, :, :])[0],
+            self.sentence_level_gru(sentences[30, :, :, :])[0],
+            self.sentence_level_gru(sentences[31, :, :, :])[0],
+            self.sentence_level_gru(sentences[32, :, :, :])[0],
+            self.sentence_level_gru(sentences[33, :, :, :])[0],
+            self.sentence_level_gru(sentences[34, :, :, :])[0],
+            self.sentence_level_gru(sentences[35, :, :, :])[0],
+            self.sentence_level_gru(sentences[36, :, :, :])[0],
+            self.sentence_level_gru(sentences[37, :, :, :])[0],
+            self.sentence_level_gru(sentences[38, :, :, :])[0],
+            self.sentence_level_gru(sentences[39, :, :, :])[0],
+            self.sentence_level_gru(sentences[40, :, :, :])[0],
+            self.sentence_level_gru(sentences[41, :, :, :])[0],
+            self.sentence_level_gru(sentences[42, :, :, :])[0],
+            self.sentence_level_gru(sentences[43, :, :, :])[0],
+            self.sentence_level_gru(sentences[44, :, :, :])[0],
+            self.sentence_level_gru(sentences[45, :, :, :])[0],
+            self.sentence_level_gru(sentences[46, :, :, :])[0],
+            self.sentence_level_gru(sentences[47, :, :, :])[0],
+            self.sentence_level_gru(sentences[48, :, :, :])[0],
+            self.sentence_level_gru(sentences[49, :, :, :])[0],
+        ], dim=0)
 
 
     def sentence_attention(self, hidden_input, document_length):
@@ -232,13 +291,21 @@ class HLAN(nn.Module):
         return sentence_representation
 
     def sentence_attention_per_label(self, hidden_input, document_length):
-        hidden_input_reshaped = hidden_input.reshape(-1, 2 * self.sentence_level_hidden_size)
-        # print(hidden_input_reshaped.shape)
+        if self.use_word_attention_per_label:
+            hidden_input_reshaped = hidden_input.reshape(self.num_labels, -1, 2 * self.sentence_level_hidden_size)
+        else:
+            hidden_input_reshaped = hidden_input.reshape(-1, 2 * self.sentence_level_hidden_size)
+
+        # print(f'Reshaped: {hidden_input_reshaped.shape}')
 
         sentence_level_attention = torch.tanh(self.sentence_level_attention(hidden_input_reshaped))
-        sentence_level_attention = sentence_level_attention.reshape(-1, document_length, 2 * self.sentence_level_hidden_size)
-        sentence_level_attention = sentence_level_attention.unsqueeze(dim=0)
-        # print(sentence_level_attention.shape)
+        # print(f'After feed forward: {sentence_level_attention.shape}')
+        if self.use_word_attention_per_label:
+            sentence_level_attention = sentence_level_attention.reshape(self.num_labels, -1, document_length, self.sentence_level_hidden_size)
+        else:
+            sentence_level_attention = sentence_level_attention.reshape(-1, document_length, self.sentence_level_hidden_size)
+            sentence_level_attention = sentence_level_attention.unsqueeze(dim=0)
+        # print(f'After expansion: {sentence_level_attention.shape}')
 
         expanded_context_vector = self.context_vector_sentence.unsqueeze(dim=1).unsqueeze(dim=1)
         # print(f'Context vector: {expanded_context_vector.shape}')
