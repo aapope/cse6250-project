@@ -15,7 +15,7 @@ def create_code_embeddings_model():
             discharge_summaries_codes.append(codes)
 
         model = Word2Vec(discharge_summaries_codes, size=200, window=5, min_count=0)
-        model.save("saved_embedding_models/code_embeddings.model")
+        model.save("saved_embedding_models/code_embeddings_200.model")
 
 
 if __name__ == '__main__':
