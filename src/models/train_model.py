@@ -195,11 +195,11 @@ def train(model, device, data_loader, criterion, optimizer, epoch, print_freq=10
         losses.update(loss.item(), target.size(0))
         
         if i % print_freq == 0:
-            print('[{3}]\tEpoch: [{0}][{1}/{2}]\t'
+            logging.info('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})'.format(
-                      epoch, i, len(data_loader), datetime.now(),
+                      epoch, i, len(data_loader),
                       batch_time=batch_time,
                       data_time=data_time, loss=losses))
         if save_freq and i % save_freq == 0:
@@ -254,8 +254,8 @@ def get_device():
     return torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
 
 
-def get_label_embeddings():
-    model = Word2Vec.load('../features/saved_embedding_models/code_embeddings.model')
+def get_label_embeddings(path):
+    model = Word2Vec.load(path)
     with open(os.path.join(PROCESSED_DATA_PATH, 'code_map.p'), 'rb') as f:
         code_map = pickle.load(f)
     sorted_codes = sorted(code_map.items(), key=lambda x: x[1])
@@ -267,7 +267,9 @@ def run():
     train_dataset = load_dataset(os.path.join(PROCESSED_DATA_PATH, 'train_50.p'))
     dev_dataset = load_dataset(os.path.join(PROCESSED_DATA_PATH, 'dev_50.p'))
     test_dataset = load_dataset(os.path.join(PROCESSED_DATA_PATH, 'test_50.p'))
-    label_embeddings = get_label_embeddings()
+
+    label_embeddings_context = get_label_embeddings('../features/saved_embedding_models/code_embeddings_200.model')
+    label_embeddings_projection = get_label_embeddings('../features/saved_embedding_models/code_embeddings_400.model')
 
     train_loader = DataLoader(
         dataset=train_dataset, batch_size=BATCH_SIZE,
@@ -285,7 +287,10 @@ def run():
         num_workers=0
     )
 
-    model = HLAN(label_embeddings=label_embeddings)
+    model = HLAN(
+        label_embeddings_context=label_embeddings_context,
+        label_embeddings_projection=label_embeddings_projection
+    )
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters())
     device = get_device()

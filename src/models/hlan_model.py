@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 class HLAN(nn.Module):
-    def __init__(self, max_document_length=100, sentence_length=25, embedding_length=100, num_labels=50, word_level_hidden_size=100, sentence_level_hidden_size=200, use_sentence_attention_per_label=True, use_word_attention_per_label=True, label_embeddings=None):
+    def __init__(self, max_document_length=100, sentence_length=25, embedding_length=100, num_labels=50, word_level_hidden_size=100, sentence_level_hidden_size=200, use_sentence_attention_per_label=True, use_word_attention_per_label=True, label_embeddings_context=None, label_embeddings_projection=None):
         super(HLAN, self).__init__()
         
         self.max_document_length = max_document_length
@@ -27,17 +27,19 @@ class HLAN(nn.Module):
             2 * word_level_hidden_size
         )
 
-        if label_embeddings is not None:
-            print('Using label embeddings to initialize attention matrix')
-            label_embeddings = torch.Tensor(label_embeddings).float()
-            # TODO: in the paper's code, this is (200, 50), so we need to regenerate these
-            # and remove this line
-            label_embeddings = label_embeddings[:2 * word_level_hidden_size, :] 
-            assert label_embeddings.shape == (2 * word_level_hidden_size, num_labels)
+        if label_embeddings_context is not None:
+            print('Using label embeddings to initialize the context matrices')
+            label_embeddings_context = torch.Tensor(label_embeddings_context).float()
+            assert label_embeddings_context.shape == (2 * word_level_hidden_size, num_labels)
+        if label_embeddings_projection is not None:
+            print('Using label embeddings to initialize the projection matrix')
+            label_embeddings_projection = torch.Tensor(label_embeddings_projection).float()
+            assert label_embeddings_projection.shape == (2 * sentence_level_hidden_size, num_labels)
+            
 
         if use_word_attention_per_label:
-            if label_embeddings is not None:
-                self.context_vector_word = nn.Parameter(label_embeddings.T)
+            if label_embeddings_context is not None:
+                self.context_vector_word = nn.Parameter(label_embeddings_context.T)
             else:
                 self.context_vector_word = nn.Parameter(torch.ones(num_labels, word_level_hidden_size * 2))
         else:
@@ -57,15 +59,18 @@ class HLAN(nn.Module):
         if use_sentence_attention_per_label:
             # initialize weights the same way that nn.Linear would
             # https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
-            if label_embeddings is not None:
-                self.context_vector_sentence = nn.Parameter(label_embeddings.T)
+            if label_embeddings_context is not None:
+                self.context_vector_sentence = nn.Parameter(label_embeddings_context.T)
             else:
                 self.context_vector_sentence = nn.Parameter(torch.ones(num_labels, 2 * self.word_level_hidden_size))
                 
             bound = math.sqrt(1 / (2 * self.sentence_level_hidden_size))
-            self.W_output = nn.Parameter(
-                torch.FloatTensor(2 * self.sentence_level_hidden_size, num_labels).uniform_(-bound, bound)
-            )
+            if label_embeddings_projection is not None:
+                self.W_output = nn.Parameter(label_embeddings_projection)
+            else:
+                self.W_output = nn.Parameter(
+                    torch.FloatTensor(2 * self.sentence_level_hidden_size, num_labels).uniform_(-bound, bound)
+                )
             self.b_output = nn.Parameter(
                 torch.FloatTensor(num_labels).uniform_(-bound, bound)
             )
