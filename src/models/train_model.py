@@ -301,7 +301,8 @@ def run():
     for epoch in range(NUM_EPOCHS):
         train(model, device, train_loader, criterion, optimizer, epoch, save_freq=50)
         evaluate(model, device, dev_loader, criterion)
-        torch.save(model, MODEL_OUTPUT_PATH)
+        # save each epoch so we can load the best one for eval
+        torch.save(model, f'{MODEL_OUTPUT_PATH}-epoch{epoch}')
 
 
 
