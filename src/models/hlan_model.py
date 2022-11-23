@@ -55,6 +55,8 @@ class HLAN(nn.Module):
             sentence_level_hidden_size
         )
 
+        self.dropout = nn.Dropout(p=0.5)
+
         
         if use_sentence_attention_per_label:
             # initialize weights the same way that nn.Linear would
@@ -120,6 +122,7 @@ class HLAN(nn.Module):
             documents = self.sentence_attention_per_label(gru_output, document_length)
             # TODO: the paper's code uses dropout here. we might want to try that
             documents = documents.permute(dims=(1, 2, 0))
+            documents = self.dropout(documents)
             # print(documents.shape)
 
             logits = torch.mul(documents, self.W_output).sum(dim=1) + self.b_output
@@ -283,7 +286,7 @@ class HLAN(nn.Module):
         attention_logits_max, _ = attention_logits.max(dim=-1, keepdim=True)
         # print(attention_logits_max.shape)
 
-        p_attention = F.softmax(attention_logits - attention_logits_max)
+        p_attention = F.softmax(attention_logits - attention_logits_max, dim=-1)
         p_attention_expanded = p_attention.unsqueeze(dim=-1)
         # print(p_attention_expanded.shape)
 
@@ -320,7 +323,7 @@ class HLAN(nn.Module):
 
         attention_logits = x.sum(dim=-1)
         attention_logits_max, _ = torch.max(attention_logits, dim=-1, keepdim=True)
-        p_attention = F.softmax(attention_logits - attention_logits_max)
+        p_attention = F.softmax(attention_logits - attention_logits_max, dim=-1)
         p_attention_expanded = p_attention.unsqueeze(dim=-1)
         # print(p_attention_expanded.shape)
 
