@@ -299,10 +299,10 @@ def run():
     criterion.to(device)
 
     for epoch in range(NUM_EPOCHS):
-        train(model, device, train_loader, criterion, optimizer, epoch, save_freq=50)
+        train(model, device, train_loader, criterion, optimizer, epoch, save_freq=None)
         evaluate(model, device, dev_loader, criterion)
         # save each epoch so we can load the best one for eval
-        torch.save(model, f'{MODEL_OUTPUT_PATH}-epoch{epoch}')
+        torch.save(model, f'../../models/HLANModel-epoch{epoch}.pth')
 
 
 
