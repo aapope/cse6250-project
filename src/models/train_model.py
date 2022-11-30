@@ -19,7 +19,7 @@ from hlan_model import HLAN
 PROCESSED_DATA_PATH = '../../data/processed'
 MODEL_OUTPUT_PATH = '../../models/HLANModel.pth'
 
-NUM_EPOCHS = 100
+NUM_EPOCHS = 10
 BATCH_SIZE = 32
 USE_CUDA = True
 
@@ -302,7 +302,7 @@ def run():
         train(model, device, train_loader, criterion, optimizer, epoch, save_freq=None)
         evaluate(model, device, dev_loader, criterion)
         # save each epoch so we can load the best one for eval
-        torch.save(model, f'../../models/HLANModel-epoch{epoch}.pth')
+        torch.save(model, f'../../models/HLANModel-interpretable-epoch{epoch}.pth')
 
 
 

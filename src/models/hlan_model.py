@@ -241,11 +241,11 @@ class HLAN(nn.Module):
         # print(attention_logits_max.shape)
 
         # (batch_size * num_sentences, sentence_length)
-        p_attention = F.softmax(attention_logits - attention_logits_max)
+        self.p_attention_word = F.softmax(attention_logits - attention_logits_max)
         # print(p_attention.shape)
 
         # (batch_size * num_sentences, sentence_length, 1)
-        p_attention_expanded = torch.unsqueeze(p_attention, dim=-1)
+        p_attention_expanded = torch.unsqueeze(self.p_attention_word, dim=-1)
         # print(p_attention_expanded.shape)
 
         # (batch_size * num_sentences, 2 * hidden)
@@ -286,8 +286,8 @@ class HLAN(nn.Module):
         attention_logits_max, _ = attention_logits.max(dim=-1, keepdim=True)
         # print(attention_logits_max.shape)
 
-        p_attention = F.softmax(attention_logits - attention_logits_max, dim=-1)
-        p_attention_expanded = p_attention.unsqueeze(dim=-1)
+        self.p_attention_word = F.softmax(attention_logits - attention_logits_max, dim=-1)
+        p_attention_expanded = self.p_attention_word.unsqueeze(dim=-1)
         # print(p_attention_expanded.shape)
 
         sentence_representation = torch.sum(
@@ -323,8 +323,8 @@ class HLAN(nn.Module):
 
         attention_logits = x.sum(dim=-1)
         attention_logits_max, _ = torch.max(attention_logits, dim=-1, keepdim=True)
-        p_attention = F.softmax(attention_logits - attention_logits_max, dim=-1)
-        p_attention_expanded = p_attention.unsqueeze(dim=-1)
+        self.p_attention_sent = F.softmax(attention_logits - attention_logits_max, dim=-1)
+        p_attention_expanded = self.p_attention_sent.unsqueeze(dim=-1)
         # print(p_attention_expanded.shape)
 
         document_representation = torch.sum(
