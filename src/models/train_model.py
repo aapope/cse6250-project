@@ -19,7 +19,7 @@ from hlan_model import HLAN
 PROCESSED_DATA_PATH = '../../data/processed'
 MODEL_OUTPUT_PATH = '../../models/HLANModel.pth'
 
-NUM_EPOCHS = 10
+NUM_EPOCHS = 100
 BATCH_SIZE = 32
 USE_CUDA = True
 

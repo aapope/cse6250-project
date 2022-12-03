@@ -7,6 +7,26 @@ import torch.nn.functional as F
 
 class HLAN(nn.Module):
     def __init__(self, max_document_length=100, sentence_length=25, embedding_length=100, num_labels=50, word_level_hidden_size=100, sentence_level_hidden_size=200, use_sentence_attention_per_label=True, use_word_attention_per_label=True, label_embeddings_context=None, label_embeddings_projection=None):
+        """
+        Hierarchical Label-wise Attention Network
+
+        :param max_document_length: the max length of a document, in number of sentences
+        :param sentence_length: the length of each sentence, in number of words
+        :param embedding_length: the dimension of the word embeddings
+        :param num_labels: the number of labels to predict
+        :param word_level_hidden_size: the size of the hidden layers in the word
+            attention section
+        :param sentence_level_hidden_size: the size of the hidden layer in the sentence
+            attention section. Must be 2*word_level_hidden_size
+        :param use_sentence_attention_per_label: whether to use label-wise attention
+            for sentences
+        :param use_word_attention_per_label: whether to use label-wise attention for
+            words
+        :param label_embeddings_context: the label embeddings matrix used to initialize
+            the context matrices. Must be of shape (num_labels, sentence_level_hidden_size)
+        :param label_embeddings_projection: the label embeddings matrix used to
+            initialize the projection matrix. Must be of shape (2 * sentence_level_hidden_size,)
+        """
         super(HLAN, self).__init__()
         
         self.max_document_length = max_document_length
