@@ -96,8 +96,3 @@ cd src/models && python evaluate_model.py
 This will print the micro and macro metrics for each of AUC, F1, recall, and precision.
 
 To see the per-label attentions you can run the notebook in `notebooks/label_visualization.ipynb`. This notebook allows you to select a particular sample and see what the sentence- and word-level attention weights were for each token in the input.
-    
-
-<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
-
---------
